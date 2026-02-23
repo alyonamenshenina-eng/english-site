@@ -82,7 +82,7 @@ onAuthStateChanged(auth, (user) => {
         userInfo.style.display = 'flex';
         messageForm.style.display = 'block';
 
-        document.getElementById('username').innerText = user.displayName;
+        document.getElementById('userName').innerText = user.displayName;
         document.getElementById('userPhoto').src = user.photoURL;
         document.getElementById('name').value = user.displayName;
         document.getElementById('email').value = user.email;
