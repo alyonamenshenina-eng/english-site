@@ -7,24 +7,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f4f6fb;
-            --surface: #ffffff;
-            --border: #e3e7f2;
-
-            --accent: #2962ff;
-            --accent-hover: #0039cb;
-            --accent-glow: rgba(41,98,255,0.25);
-
-            --red: #ff4d4f;
-            --green: #2ecc71;
-
-            --text: #1f2a44;
-            --muted: #7a859f;
+            --bg: #0e0f11;
+            --surface: #16181c;
+            --border: #2a2d35;
+            --accent: #5b6af0;
+            --accent-glow: rgba(91,106,240,0.25);
+            --red: #e05b5b;
+            --red-glow: rgba(224,91,91,0.2);
+            --green: #4ecb8d;
+            --text: #e8eaf0;
+            --muted: #666b7e;
         }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
+            font-family: 'DM Sans', sans-serif;
             background: var(--bg);
             color: var(--text);
+            min-height: 100vh;
+            padding: 30px 20px 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
         }
 
         header {
@@ -51,9 +57,12 @@
         }
 
         .panel {
+            width: 100%;
+            max-width: 520px;
             background: var(--surface);
             border: 1px solid var(--border);
-            box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+            border-radius: 12px;
+            padding: 20px;
         }
 
         .panel-title {
@@ -104,22 +113,18 @@
         button:disabled { opacity: 0.4; cursor: not-allowed; }
 
         #mainBtn {
-            background: linear-gradient(135deg, #2962ff, #5c9cff);
-            color: white;
+            flex: 1;
+            background: var(--accent);
+            color: #fff;
         }
 
-        #mainBtn:hover {
-            background: linear-gradient(135deg, #0039cb, #2962ff);
-            box-shadow: 0 0 18px var(--accent-glow);
-        }
+        #mainBtn:hover:not(:disabled) { box-shadow: 0 0 14px var(--accent-glow); }
 
         #searchBtn {
-            background: #00c853;
-            color: white;
-        }
-
-        #searchBtn:hover {
-            background: #00a844;
+            background: #1e2028;
+            color: var(--text);
+            border: 1px solid var(--border);
+            flex: 1;
         }
 
         #clearSearchBtn {
@@ -211,17 +216,23 @@
         .post-actions { display: flex; gap: 8px; }
 
         .like-btn {
-            background: #e3f2fd;
-            color: #2962ff;
-            border: none;
+            background: #1e2028;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
         }
 
         .like-btn:hover { border-color: var(--accent); color: var(--accent); }
 
         .delete-btn {
-            background: #ffeaea;
-            color: #ff4d4f;
-            border: none;
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 5px 11px;
+            border-radius: 20px;
+            font-size: 13px;
         }
 
         .delete-btn:hover { background: var(--red-glow); border-color: var(--red); color: var(--red); }
@@ -302,27 +313,26 @@
     <input type="text" id="content" placeholder="What's on your mind?">
 
     <!-- Image URL (Этап V) -->
-    <input type="file" id="imageFile" accept="image/*">
+    <input type="url" id="imageUrl" placeholder="🖼 Image URL (optional)">
+    <img id="imagePreview" alt="Preview">
 
     <div class="btn-row" style="margin-top:10px;">
         <button id="mainBtn">↑ Publish to cloud</button>
     </div>
 </div>
 
-<div id="searchNotice"></div>
-<div id="feed"></div>
-    <div class="panel" id="chatPanel">
-    <div class="panel-title">Private Chat</div>
-
-    <select id="chatUserSelect"></select>
-
-    <div id="chatBox" style="height:300px; overflow-y:auto; margin:10px 0;"></div>
-
-    <div style="display:flex; gap:8px;">
-        <input type="text" id="chatInput" placeholder="Ваше сообщение...">
-        <button id="sendMsgBtn">➤</button>
+<!-- SEARCH PANEL -->
+<div class="panel">
+    <div class="panel-title">Search by Name</div>
+    <input type="text" id="searchInput" placeholder="Enter exact name to search...">
+    <div class="btn-row">
+        <button id="searchBtn">⌕ Query Firestore</button>
+        <button id="clearSearchBtn">✕ Clear</button>
     </div>
 </div>
+
+<div id="searchNotice"></div>
+<div id="feed"></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -334,12 +344,9 @@
     import {
         getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL }
-    from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
-
-    const storage = getStorage(app);
 
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCh90XrGHx08ElQ5hsUN4SXZOnVJTSwzVo",
@@ -356,6 +363,21 @@ const firebaseConfig = {
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
 
+
+    // ── IMAGE URL PREVIEW ───────────────────────────────────────────────────
+    const imageUrlInput = document.getElementById('imageUrl');
+    const imagePreview = document.getElementById('imagePreview');
+
+    imageUrlInput.addEventListener('input', () => {
+        const url = imageUrlInput.value.trim();
+        if (url) {
+            imagePreview.src = url;
+            imagePreview.style.display = 'block';
+            imagePreview.onerror = () => { imagePreview.style.display = 'none'; };
+        } else {
+            imagePreview.style.display = 'none';
+        }
+    });
 
     // ── AUTH LOGIC ──────────────────────────────────────────────────────────
     const loginBtn = document.getElementById('loginBtn');
@@ -380,8 +402,6 @@ const firebaseConfig = {
             // Pre-fill form with Google account info (readonly)
             document.getElementById('name').value = user.displayName;
             document.getElementById('email').value = user.email;
-
-            loadUsers();
         } else {
             // Hide form, show login button
             loggedOut.style.display = 'block';
@@ -389,81 +409,6 @@ const firebaseConfig = {
             messageForm.style.display = 'none';
         }
     });
-
-    // --- Private Chat -------
-    let currentChatId = null;
-    const chatBox = document.getElementById('chatBox');
-
-    async function loadUsers() {
-        const snapshot = await getDocs(collection(db, "requests"));
-        const select = document.getElementById('chatUserSelect');
-        select.innerHTML = "";
-
-        const users = new Set();
-        snapshot.forEach(doc => users.add(doc.data().email));
-
-        users.forEach(email => {
-            if (email !== auth.currentUser.email) {
-                const option = document.createElement("option");
-                option.value = email;
-                option.textContent = email;
-                select.appendChild(option);
-            }
-        });
-    }
-
-    document.getElementById('chatUserSelect').onchange = (e) => {
-        const otherEmail = e.target.value;
-        const userEmail = auth.currentUser.email;
-        currentChatId = [userEmail, otherEmail].sort().join("_");
-        listenChat();
-    };
-
-    function listenChat() {
-        if (!currentChatId) return;
-
-        const q = query(
-            collection(db, "messages", currentChatId, "items"),
-            orderBy("timestamp")
-        );
-
-        onSnapshot(q, snapshot => {
-            chatBox.innerHTML = "";
-            snapshot.forEach(d => {
-                const msg = d.data();
-                const div = document.createElement("div");
-                div.style.margin = "6px 0";
-                div.style.textAlign =
-                    msg.sender === auth.currentUser.email ? "right" : "left";
-
-                div.innerHTML = `
-                    <span style="
-                        display:inline-block;
-                        padding:8px 12px;
-                        border-radius:14px;
-                        background:${msg.sender === auth.currentUser.email ? '#2962ff' : '#e3e7f2'};
-                        color:${msg.sender === auth.currentUser.email ? 'white' : '#000'};
-                    ">
-                        ${escapeHtml(msg.text)}
-                    </span>
-                `;
-                chatBox.appendChild(div);
-            });
-        });
-    }
-
-    document.getElementById('sendMsgBtn').onclick = async () => {
-        const text = document.getElementById('chatInput').value.trim();
-        if (!text || !currentChatId) return;
-
-        await addDoc(collection(db, "messages", currentChatId, "items"), {
-            text,
-            sender: auth.currentUser.email,
-            timestamp: serverTimestamp()
-        });
-
-        document.getElementById('chatInput').value = "";
-    };
 
     // ── LIKE / DELETE ──────────────────────────────────────────────────────
     window.processLike = async (id) => {
@@ -522,27 +467,19 @@ const firebaseConfig = {
     };
 
     // ── PUBLISH ─────────────────────────────────────────────────────────────
-    const fileInput = document.getElementById('imageFile');
-
     document.getElementById('mainBtn').onclick = async () => {
         const user = auth.currentUser;
         if (!user) return alert("Войдите в аккаунт!");
 
         const content = document.getElementById('content').value.trim();
-        if (!content) return alert("Введите текст!");
+        if (!content) return alert("Введите текст сообщения!");
 
         const btn = document.getElementById('mainBtn');
         btn.disabled = true;
-
-        let imageUrl = null;
+        btn.textContent = 'Uploading...';
 
         try {
-            if (fileInput.files[0]) {
-                const file = fileInput.files[0];
-                const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
-                await uploadBytes(storageRef, file);
-                imageUrl = await getDownloadURL(storageRef);
-            }
+            let imageUrl = imageUrlInput.value.trim() || null;
 
             await addDoc(collection(db, "requests"), {
                 name: user.displayName,
@@ -555,12 +492,14 @@ const firebaseConfig = {
             });
 
             document.getElementById('content').value = "";
-            fileInput.value = "";
+            imageUrlInput.value = '';
+            imagePreview.style.display = 'none';
         } catch (e) {
-            alert("Ошибка: " + e.message);
+            alert("Ошибка безопасности! Проверьте правила (Rules) в Firebase.\n" + e.message);
         }
 
         btn.disabled = false;
+        btn.textContent = '↑ Publish to cloud';
     };
 
     // ── REAL-TIME FEED ──────────────────────────────────────────────────────
