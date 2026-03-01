@@ -415,46 +415,6 @@ const firebaseConfig = {
         }
     };
 
-    // ── SEARCH ─────────────────────────────────────────────────────────────
-    document.getElementById('searchBtn').onclick = async () => {
-        const term = document.getElementById('searchInput').value.trim();
-        if (!term) return;
-
-        isSearchMode = true;
-        const notice = document.getElementById('searchNotice');
-        const feed = document.getElementById('feed');
-
-        feed.innerHTML = `<div class="empty">Searching...</div>`;
-
-        try {
-            const q = query(
-                collection(db, "requests"),
-                where("name", "==", term),
-                orderBy("timestamp", "desc")
-            );
-            const snapshot = await getDocs(q);
-
-            notice.innerHTML = `<span class="dot"></span> ${snapshot.size} result${snapshot.size !== 1 ? 's' : ''} for "<b>${term}</b>"`;
-            feed.innerHTML = "";
-
-            if (snapshot.empty) {
-                feed.innerHTML = `<div class="empty">No entries found for "${term}"</div>`;
-                return;
-            }
-
-            snapshot.forEach(d => renderPost(feed, d.id, d.data()));
-        } catch (e) {
-            feed.innerHTML = `<div class="empty">Query error: ${e.message}</div>`;
-        }
-    };
-
-    document.getElementById('clearSearchBtn').onclick = () => {
-        isSearchMode = false;
-        document.getElementById('searchInput').value = "";
-        document.getElementById('searchNotice').innerHTML = "";
-        startLiveFeed();
-    };
-
     // ── PUBLISH ─────────────────────────────────────────────────────────────
     document.getElementById('mainBtn').onclick = async () => {
         const user = auth.currentUser;
